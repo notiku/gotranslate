@@ -16,13 +16,13 @@ func encodeURI(s string) string {
 	return url.QueryEscape(s)
 }
 
-func Translate(source, sourceLang, targetLang string) (string, error) {
+func Translate(source, from, to string) (string, error) {
 	var text []string
 	var result []interface{}
 
 	encodedSource := encodeURI(source)
 	url := "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" +
-		sourceLang + "&tl=" + targetLang + "&dt=t&q=" + encodedSource
+		from + "&tl=" + to + "&dt=t&q=" + encodedSource
 
 	r, err := http.Get(url)
 	if err != nil {
