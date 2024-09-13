@@ -2,7 +2,6 @@ package gotranslate
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,39 +9,51 @@ import (
 	"strings"
 )
 
+type Response struct {
+	Original   string
+	Translated string
+	From       string
+	To         string
+}
+
 // javascript "encodeURI()"
-// so we embed js to our golang programm
+// so we embed js to our golang program
 func encodeURI(s string) string {
 	return url.QueryEscape(s)
 }
 
-func Translate(source, from, to string) (string, error) {
+func Translate(source, from, to string) (Response, error) {
 	var text []string
 	var result []interface{}
 
 	encodedSource := encodeURI(source)
-	url := "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" +
+	api := "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" +
 		from + "&tl=" + to + "&dt=t&q=" + encodedSource
 
-	r, err := http.Get(url)
+	r, err := http.Get(api)
 	if err != nil {
-		return "err", errors.New("error getting translate.googleapis.com")
+		return Response{}, fmt.Errorf("error getting translate.googleapis.com")
 	}
-	defer r.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println("error closing response body")
+		}
+	}(r.Body)
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		return "err", errors.New("error reading response body")
+		return Response{}, fmt.Errorf("error reading response body")
 	}
 
 	bReq := strings.Contains(string(body), `<title>Error 400 (Bad Request)`)
 	if bReq {
-		return "err", errors.New("error 400 (Bad Request)")
+		return Response{}, fmt.Errorf("error 400 (Bad Request)")
 	}
 
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		return "err", errors.New("error unmarshaling data")
+		return Response{}, fmt.Errorf("error unmarshalling data")
 	}
 
 	if len(result) > 0 {
@@ -54,9 +65,15 @@ func Translate(source, from, to string) (string, error) {
 			}
 		}
 		cText := strings.Join(text, "")
+		detectedLang := result[2].(string)
 
-		return cText, nil
+		return Response{
+			Original:   source,
+			Translated: cText,
+			From:       detectedLang,
+			To:         to,
+		}, nil
 	} else {
-		return "err", errors.New("no translated data in responce")
+		return Response{}, fmt.Errorf("no translated data in response")
 	}
 }
