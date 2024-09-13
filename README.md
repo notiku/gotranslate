@@ -21,6 +21,6 @@ var text string = "Hello, World!"
 
 func main() {
 	result, _ := gt.Translate(text, "en", "es")
-	fmt.Println(result)
+	fmt.Println(result.Translated)
 }
 ```
